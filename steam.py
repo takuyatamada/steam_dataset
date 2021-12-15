@@ -81,7 +81,7 @@ def main():
 def dump_dp(line_json):
     con = sqlite3.connect('steam.db')
     cur = con.cursor()
-    from fasttext import load_model
+    # from fasttext import load_model
 
 
     # for one_line in line_json:
@@ -98,20 +98,44 @@ def dump_dp(line_json):
         _tmp = [user_id,item_id,rating,review_text]
         # print(_tmp)
         cur.execute('insert or ignore into review (user_id,item_id,rating,review) values(?,?,?,?)',_tmp)
+        
         # パスを書き換えてください
-        model = load_model("../bin/lid.176.bin")
-        model.predict("Arcadian Landscape with Shepherds and Cattle")
+        # model = load_model("../bin/lid.176.bin")
+        # model.predict("Arcadian Landscape with Shepherds and Cattle")
         # if user_id = '154352':
         #     print(line_json)
     con.commit()
 
+def translate_main(db_path):
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    cur.execute('select user_id,item_id,rating,review from review where translate_review is null')
+    columns = cur.fetchall()
+    # print(columns)
+    for column in columns:
+        translate_text = translate(column[3])
+        print(column)
+        print(translate_text)
+
+        sql = 'update review set translate_review= "'+translate_text+'" where user_id= '+str(column[0])+' and item_id= '+str(column[1])
+        print(sql)
+        cur.execute(sql)
+        con.commit()
+
 def translate(text):
     url = "https://script.google.com/macros/s/AKfycbzZtvOvf14TaMdRIYzocRcf3mktzGgXvlFvyczo/exec?text="+ text + "&source=&target=en"
     response = requests.get(url)
-    jsonData = response.json()
-    print(jsonData["text"])
-    return jsonData["text"]
+    # text = text.decode('utf-8')
+    try:
+        jsonData = response.json()
+    except:
+        return ""
+    # print(jsonData["text"])
+    translate_text = jsonData["text"]
+    translate_text = translate_text.replace("\"","\'")
+    return translate_text
 
 if __name__ == '__main__':
     # main()
     # translate("O jogo que vc pode fazer quase tudo e tem ate fase e parkour esse jogo é muito bom")
+    translate_main('steam.db')
