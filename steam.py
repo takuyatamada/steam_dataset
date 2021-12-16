@@ -2,6 +2,7 @@ import json
 import sqlite3
 import requests
 import re
+from googletrans import Translator
 def main():
     # path = "steam_new.json"
     # path = "steam_games.json"
@@ -109,33 +110,62 @@ def dump_dp(line_json):
 def translate_main(db_path):
     con = sqlite3.connect(db_path)
     cur = con.cursor()
-    cur.execute('select user_id,item_id,rating,review from review where translate_review is null')
+    cur.execute('select user_id,item_id,rating,review from review where translate_review is null or translate_review == "" ')
     columns = cur.fetchall()
     # print(columns)
+    count = 0
     for column in columns:
-        translate_text = translate(column[3])
+        count+=1
+        # if count==2:
+        #     break
+        # try:
         print(column)
-        print(translate_text)
-
+        
+        # translate_text = translate(column[3])
+        # print('column3',column[3])
+        translate_text = googletrans(column[3])
+        # print(translate_text)
+    
+        #DBに挿入
         sql = 'update review set translate_review= "'+translate_text+'" where user_id= '+str(column[0])+' and item_id= '+str(column[1])
         print(sql)
         cur.execute(sql)
         con.commit()
+        #dbここまで
+
+        # except:
+        #     continue  
 
 def translate(text):
     url = "https://script.google.com/macros/s/AKfycbzZtvOvf14TaMdRIYzocRcf3mktzGgXvlFvyczo/exec?text="+ text + "&source=&target=en"
     response = requests.get(url)
+    response.encoding = response.apparent_encoding
     # text = text.decode('utf-8')
-    try:
-        jsonData = response.json()
-    except:
-        return ""
+    # try:
+    #     jsonData = response.json()
+    # except:
+    #     return ""
     # print(jsonData["text"])
+    print(response.text)
+    jsonData = response.json()
     translate_text = jsonData["text"]
     translate_text = translate_text.replace("\"","\'")
+    return translate_text
+
+def googletrans(text):
+    translate = Translator()
+    text = str(text)
+    # try:
+    #     translate_text = translate.translate(text=text,dest="en").text
+    # except:
+    #     return ""
+    # translate_text = translate_text.replace("\"","\'")
+    translate_text = translate.translate(text=text,dest="en").text
+    print(translate_text)
     return translate_text
 
 if __name__ == '__main__':
     # main()
     # translate("O jogo que vc pode fazer quase tudo e tem ate fase e parkour esse jogo é muito bom")
-    translate_main('steam.db')
+    # translate_main('steam.db')
+    googletrans('People take things too seriousl. Trolling/10.')
