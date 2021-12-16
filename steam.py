@@ -2,6 +2,7 @@ import json
 import sqlite3
 import requests
 import re
+import time
 from googletrans import Translator
 def main():
     # path = "steam_new.json"
@@ -110,24 +111,26 @@ def dump_dp(line_json):
 def translate_main(db_path):
     con = sqlite3.connect(db_path)
     cur = con.cursor()
-    cur.execute('select user_id,item_id,rating,review from review where translate_review is null or translate_review == "" ')
+    cur.execute('select user_id,item_id,rating,review from review where review != "" and translate_review is null ')
     columns = cur.fetchall()
     # print(columns)
     count = 0
     for column in columns:
         count+=1
-        # if count==2:
-        #     break
-        # try:
+        if count==1:
+            continue
+        if column[0]=='inf':
+            continue
         print(column)
         
-        # translate_text = translate(column[3])
+        translate_text = translate(column[3])
         # print('column3',column[3])
-        translate_text = googletrans(column[3])
+        # translate_text = googletrans(column[3])
+        time.sleep(1)
         # print(translate_text)
     
         #DBに挿入
-        sql = 'update review set translate_review= "'+translate_text+'" where user_id= '+str(column[0])+' and item_id= '+str(column[1])
+        sql = 'update review set translate_review= "'+translate_text+'" where user_id= "'+str(column[0])+'" and item_id= '+str(column[1])
         print(sql)
         cur.execute(sql)
         con.commit()
@@ -147,25 +150,61 @@ def translate(text):
     #     return ""
     # print(jsonData["text"])
     print(response.text)
-    jsonData = response.json()
+    try:
+        jsonData = response.json()
+    except json.decoder.JSONDecodeError:
+         return ""    
+    time.sleep(1)
     translate_text = jsonData["text"]
     translate_text = translate_text.replace("\"","\'")
     return translate_text
 
+
 def googletrans(text):
     translate = Translator()
     text = str(text)
+    text = text.strip()
+    text = text.replace('\\', ' ')
     # try:
     #     translate_text = translate.translate(text=text,dest="en").text
     # except:
     #     return ""
     # translate_text = translate_text.replace("\"","\'")
-    translate_text = translate.translate(text=text,dest="en").text
+    try:
+        translate_text = translate.translate(text=text,dest="en").text
+        translate_text = translate_text.replace("\"","\'")
+    except TypeError:
+        print('except type error')
+        translate_text=""
+    except IndexError:
+        print('except index error')
+        translate_text=""
     print(translate_text)
     return translate_text
+
+
+def googletrans_list(db_path):
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    cur.execute('select user_id,item_id,rating,review from review where review != "" and (translate_review is null or translate_review == "") ')
+    columns = cur.fetchall()
+    text_list = []
+    for column in columns[20000:20001]:
+        text = str(column[3])
+        text = text.strip()
+        text = text.replace('\\', ' ')
+        text_list.append(text)
+    
+    text_list = ['私は大学生','ビールが飲みたい']
+    print(text_list)
+    translator = Translator()
+    translations = translator.translate(text_list,dest='ja')
+    for translation in translations:
+        print(translation.text)
 
 if __name__ == '__main__':
     # main()
     # translate("O jogo que vc pode fazer quase tudo e tem ate fase e parkour esse jogo é muito bom")
-    # translate_main('steam.db')
-    googletrans('People take things too seriousl. Trolling/10.')
+    translate_main('steam.db')
+    # googletrans('')
+    # googletrans_list('steam.db')
